@@ -62,7 +62,13 @@ func (oc *Controller) StartClusterMaster(masterNodeName string) error {
 				subrange = append(subrange, allocatedRange)
 			}
 		}
-		subnetAllocator, err := netutils.NewSubnetAllocator(clusterEntry.CIDR.String(), 32-clusterEntry.HostSubnetLength, subrange)
+		var hostSubnetBits uint32
+		if clusterEntry.CIDR.IP.To4() != nil {
+			hostSubnetBits = 32 - clusterEntry.HostSubnetLength
+		} else {
+			hostSubnetBits = 128 - clusterEntry.HostSubnetLength
+		}
+		subnetAllocator, err := netutils.NewSubnetAllocator(clusterEntry.CIDR.String(), hostSubnetBits, subrange)
 		if err != nil {
 			return err
 		}
