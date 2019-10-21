@@ -8,7 +8,12 @@ import (
 
 var ErrSubnetAllocatorFull = fmt.Errorf("No subnets available.")
 
-type SubnetAllocator struct {
+type SubnetAllocator interface {
+	GetNetwork() (*net.IPNet, error)
+	ReleaseNetwork(ipnet *net.IPNet) error
+}
+
+type ipv4SubnetAllocator struct {
 	network    *net.IPNet
 	hostBits   uint32
 	leftShift  uint32
@@ -20,12 +25,27 @@ type SubnetAllocator struct {
 	mutex      sync.Mutex
 }
 
-func NewSubnetAllocator(network string, hostBits uint32, inUse []string) (*SubnetAllocator, error) {
+type ipv6SubnetAllocator struct {
+	network  *net.IPNet
+	hostBits uint32
+	allocMap map[string]bool
+	mutex    sync.Mutex
+}
+
+func NewSubnetAllocator(network string, hostBits uint32, inUse []string) (SubnetAllocator, error) {
 	_, netIP, err := net.ParseCIDR(network)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to parse network address: %q", network)
 	}
 
+	if netIP.IP.To4() != nil {
+		return newIPv4SubnetAllocator(netIP, hostBits, inUse)
+	} else {
+		return newIPv6SubnetAllocator(netIP, hostBits, inUse)
+	}
+}
+
+func newIPv4SubnetAllocator(netIP *net.IPNet, hostBits uint32, inUse []string) (SubnetAllocator, error) {
 	netMaskSize, _ := netIP.Mask.Size()
 	if hostBits == 0 {
 		return nil, fmt.Errorf("Host capacity cannot be zero.")
@@ -74,7 +94,7 @@ func NewSubnetAllocator(network string, hostBits uint32, inUse []string) (*Subne
 		}
 		amap[nIp.String()] = true
 	}
-	return &SubnetAllocator{
+	return &ipv4SubnetAllocator{
 		network:    netIP,
 		hostBits:   hostBits,
 		leftShift:  leftShift,
@@ -86,7 +106,7 @@ func NewSubnetAllocator(network string, hostBits uint32, inUse []string) (*Subne
 	}, nil
 }
 
-func (sna *SubnetAllocator) GetNetwork() (*net.IPNet, error) {
+func (sna *ipv4SubnetAllocator) GetNetwork() (*net.IPNet, error) {
 	var (
 		numSubnets    uint32
 		numSubnetBits uint32
@@ -117,7 +137,95 @@ func (sna *SubnetAllocator) GetNetwork() (*net.IPNet, error) {
 	return nil, ErrSubnetAllocatorFull
 }
 
-func (sna *SubnetAllocator) ReleaseNetwork(ipnet *net.IPNet) error {
+func (sna *ipv4SubnetAllocator) ReleaseNetwork(ipnet *net.IPNet) error {
+	sna.mutex.Lock()
+	defer sna.mutex.Unlock()
+	if !sna.network.Contains(ipnet.IP) {
+		return fmt.Errorf("Provided subnet %v doesn't belong to the network %v.", ipnet, sna.network)
+	}
+
+	ipnetStr := ipnet.String()
+	if !sna.allocMap[ipnetStr] {
+		return fmt.Errorf("Provided subnet %v is already available.", ipnet)
+	}
+
+	sna.allocMap[ipnetStr] = false
+
+	return nil
+}
+
+func newIPv6SubnetAllocator(netIP *net.IPNet, hostBits uint32, inUse []string) (SubnetAllocator, error) {
+	if hostBits == 0 {
+		return nil, fmt.Errorf("Host capacity cannot be zero.")
+	}
+	netMaskSize, _ := netIP.Mask.Size()
+	if hostBits > 128-uint32(netMaskSize) {
+		return nil, fmt.Errorf("Subnet capacity cannot be larger than number of networks available.")
+	}
+
+	amap := make(map[string]bool)
+	for _, netStr := range inUse {
+		_, nIp, err := net.ParseCIDR(netStr)
+		if err != nil {
+			fmt.Println("Failed to parse network address: ", netStr)
+			continue
+		}
+		if !netIP.Contains(nIp.IP) {
+			fmt.Println("Provided subnet doesn't belong to network: ", nIp)
+			continue
+		}
+		amap[nIp.String()] = true
+	}
+	return &ipv6SubnetAllocator{
+		network:  netIP,
+		hostBits: hostBits,
+		allocMap: amap,
+	}, nil
+}
+
+// Example: getSubnet({"fd01::/48", 64, 1) => "fd01::1:0:0:0:0/64"
+func getSubnet(network *net.IPNet, hostBits, index uint32) *net.IPNet {
+	upper, lower := IPToUint64(network.IP)
+	netMaskSize, bits := network.Mask.Size()
+
+	if netMaskSize >= 64 {
+		// This is because of OVN LSP dynamic addressing based
+		// on EUI64 only uses the /64 prefix of the host network
+		panic("FIXME: cluster networks must be larger than /64")
+	}
+	upper = ((upper >> (hostBits - 64)) + uint64(index)) << (hostBits - 64)
+
+	return &net.IPNet{
+		IP:   Uint64ToIP(upper, lower),
+		Mask: net.CIDRMask(bits-int(hostBits), bits),
+	}
+}
+
+func (sna *ipv6SubnetAllocator) GetNetwork() (*net.IPNet, error) {
+	var (
+		numSubnets    uint32
+		numSubnetBits uint32
+	)
+	sna.mutex.Lock()
+	defer sna.mutex.Unlock()
+
+	netMaskSize, _ := sna.network.Mask.Size()
+	numSubnetBits = 128 - uint32(netMaskSize) - sna.hostBits
+	numSubnets = 1 << numSubnetBits
+
+	var i uint32
+	for i = 0; i < numSubnets; i++ {
+		genSubnet := getSubnet(sna.network, sna.hostBits, i)
+		if !sna.allocMap[genSubnet.String()] {
+			sna.allocMap[genSubnet.String()] = true
+			return genSubnet, nil
+		}
+	}
+
+	return nil, ErrSubnetAllocatorFull
+}
+
+func (sna *ipv6SubnetAllocator) ReleaseNetwork(ipnet *net.IPNet) error {
 	sna.mutex.Lock()
 	defer sna.mutex.Unlock()
 	if !sna.network.Contains(ipnet.IP) {
