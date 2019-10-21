@@ -13,6 +13,7 @@ import (
 	"github.com/ovn-org/ovn-kubernetes/go-controller/pkg/config"
 	"github.com/ovn-org/ovn-kubernetes/go-controller/pkg/ovn"
 	"github.com/ovn-org/ovn-kubernetes/go-controller/pkg/util"
+	"github.com/sirupsen/logrus"
 )
 
 const (
@@ -55,9 +56,14 @@ func CreateManagementPort(nodeName string, localSubnet *net.IPNet, clusterSubnet
 		}
 
 		// Create a route for the entire subnet.
-		_, _, err = util.RunIP("route", "add", subnet, "via", routerIP)
+		_, stderr, err := util.RunIP("route", "add", subnet, "via", routerIP)
 		if err != nil {
-			return nil, err
+			if strings.HasPrefix(stderr, "RTNETLINK answers: File exists") {
+				logrus.Warningf("Ignoring error %s from 'route add %s via %s' - already added via IPv6 RA?",
+					strings.TrimSpace(stderr), subnet, routerIP)
+			} else {
+				return nil, fmt.Errorf("Failed to add route for %s via %s: %s", subnet, routerIP, err)
+			}
 		}
 	}
 
@@ -68,9 +74,14 @@ func CreateManagementPort(nodeName string, localSubnet *net.IPNet, clusterSubnet
 	}
 
 	// Create a route for the services subnet.
-	_, _, err = util.RunIP("route", "add", config.Kubernetes.ServiceCIDR, "via", routerIP)
+	_, stderr, err := util.RunIP("route", "add", config.Kubernetes.ServiceCIDR, "via", routerIP)
 	if err != nil {
-		return nil, err
+		if strings.HasPrefix(stderr, "RTNETLINK answers: File exists") {
+			logrus.Warningf("Ignoring error %s from 'route add %s via %s' - already added via IPv6 RA?",
+				strings.TrimSpace(stderr), config.Kubernetes.ServiceCIDR, routerIP)
+		} else {
+			return nil, fmt.Errorf("Failed to add route for %s via %s: %s", config.Kubernetes.ServiceCIDR, routerIP, err)
+		}
 	}
 
 	// Add a neighbour entry on the K8s node to map routerIP with routerMAC. This is
