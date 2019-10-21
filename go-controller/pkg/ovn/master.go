@@ -142,11 +142,11 @@ func (oc *Controller) SetupMaster(masterNodeName string) error {
 
 	// Create a logical switch called "join" that will be used to connect gateway routers to the distributed router.
 	// The "join" switch will be allocated IP addresses in the range 100.64.0.0/16.
-	const joinSubnet string = "100.64.0.1/16"
-	joinIP, joinCIDR, _ := net.ParseCIDR(joinSubnet)
+	// FIXME: IPv6 hack, need to identify a good range to use and make conditional
+	const joinSubnet string = "fd03::1/64"
+	_, joinCIDR, _ := net.ParseCIDR(joinSubnet)
 	stdout, stderr, err = util.RunOVNNbctl("--may-exist", "ls-add", "join",
-		"--", "set", "logical_switch", "join", fmt.Sprintf("other-config:subnet=%s", joinCIDR.String()),
-		"--", "set", "logical_switch", "join", fmt.Sprintf("other-config:exclude_ips=%s", joinIP.String()))
+		"--", "set", "logical_switch", "join", fmt.Sprintf("other-config:ipv6_prefix=%s", joinCIDR.IP.String()))
 	if err != nil {
 		logrus.Errorf("Failed to create logical switch called \"join\", stdout: %q, stderr: %q, error: %v", stdout, stderr, err)
 		return err

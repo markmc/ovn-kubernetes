@@ -40,7 +40,7 @@ func GatewayCleanup(nodeName, nodeSubnet string) error {
 		nextHops = append(nextHops, routerIP)
 		defRouteUUID, _, _ = RunOVNNbctl("--data=bare", "--no-heading",
 			"--columns=_uuid", "find", "logical_router_static_route",
-			"ip_prefix=0.0.0.0/0", "nexthop="+routerIP)
+			"ip_prefix=::/0", "nexthop="+routerIP)
 	}
 	mgtPortIP = getMgtPortIP(nodeSubnet)
 	if mgtPortIP != "" {
@@ -80,7 +80,7 @@ func GatewayCleanup(nodeName, nodeSubnet string) error {
 				"with first GR as the nexthop, error: %v", err)
 		} else {
 			_, stderr, err = RunOVNNbctl("--may-exist", "lr-route-add",
-				clusterRouter, "0.0.0.0/0", defGatewayIP.String())
+				clusterRouter, "::/0", defGatewayIP.String())
 			if err != nil {
 				logrus.Errorf("failed to add a default route in distributed router "+
 					"with first GR as the nexthop, stderr: %q, error: %v",

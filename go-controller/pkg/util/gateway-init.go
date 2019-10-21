@@ -109,12 +109,14 @@ func ensureGatewayPortAddress(portName string) (net.HardwareAddr, *net.IPNet, er
 	}
 
 	// Grab the 'join' switch prefix length to add to our gateway router's IP
-	cidrStr, stderr, err := RunOVNNbctl("--if-exists", "get",
-		"logical_switch", "join", "other-config:subnet")
+	prefixStr, stderr, err := RunOVNNbctl("--if-exists", "get",
+		"logical_switch", "join", "other-config:ipv6_prefix")
 	if err != nil {
 		return nil, nil, fmt.Errorf("Failed to get 'join' switch external-ids: "+
 			"stderr: %q, %v", stderr, err)
 	}
+	// FIXME: should we assume /64?
+	cidrStr := fmt.Sprintf("%s/64", prefixStr)
 	_, cidr, err := net.ParseCIDR(cidrStr)
 	if err != nil {
 		return nil, nil, fmt.Errorf("Failed to parse 'join' switch subnet %q: %v",
@@ -219,8 +221,9 @@ func GatewayInit(clusterIPSubnet []string, nodeName, ifaceID, nicIP, nicMacAddre
 
 	for _, entry := range clusterIPSubnet {
 		// Add a static route in GR with distributed router as the nexthop.
+		// FIXME: IPv6 hack
 		stdout, stderr, err = RunOVNNbctl("--may-exist", "lr-route-add",
-			gatewayRouter, entry, "100.64.0.1")
+			gatewayRouter, entry, "fd03::1")
 		if err != nil {
 			return fmt.Errorf("Failed to add a static route in GR with distributed "+
 				"router as the nexthop, stdout: %q, stderr: %q, error: %v",
@@ -234,7 +237,7 @@ func GatewayInit(clusterIPSubnet []string, nodeName, ifaceID, nicIP, nicMacAddre
 		return err
 	}
 	stdout, stderr, err = RunOVNNbctl("--may-exist", "lr-route-add",
-		k8sClusterRouter, "0.0.0.0/0", defGatewayIP.String())
+		k8sClusterRouter, "::/0", defGatewayIP.String())
 	if err != nil {
 		return fmt.Errorf("Failed to add a default route in distributed router "+
 			"with first GR as the nexthop, stdout: %q, stderr: %q, error: %v",
@@ -342,7 +345,7 @@ func GatewayInit(clusterIPSubnet []string, nodeName, ifaceID, nicIP, nicMacAddre
 	// Add a static route in GR with physical gateway as the default next hop.
 	if defaultGW != "" {
 		stdout, stderr, err = RunOVNNbctl("--may-exist", "lr-route-add",
-			gatewayRouter, "0.0.0.0/0", defaultGW,
+			gatewayRouter, "::/0", defaultGW,
 			fmt.Sprintf("rtoe-%s", gatewayRouter))
 		if err != nil {
 			return fmt.Errorf("Failed to add a static route in GR with physical "+
