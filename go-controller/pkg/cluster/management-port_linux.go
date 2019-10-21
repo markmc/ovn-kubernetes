@@ -104,7 +104,7 @@ func CreateManagementPort(nodeName string, localSubnet *net.IPNet, clusterSubnet
 }
 
 func addMgtPortIptRules(ifname, interfaceIP string) error {
-	ipt, err := util.GetIPTablesHelper(iptables.ProtocolIPv4)
+	ipt, err := util.GetIPTablesHelper(iptables.ProtocolIPv6)
 	if err != nil {
 		return err
 	}
@@ -132,7 +132,7 @@ func addMgtPortIptRules(ifname, interfaceIP string) error {
 
 //DelMgtPortIptRules delete all the iptable rules for the management port.
 func DelMgtPortIptRules(nodeName string) {
-	ipt, err := util.GetIPTablesHelper(iptables.ProtocolIPv4)
+	ipt, err := util.GetIPTablesHelper(iptables.ProtocolIPv6)
 	if err != nil {
 		return
 	}
