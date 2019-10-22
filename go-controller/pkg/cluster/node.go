@@ -62,7 +62,7 @@ func (cluster *OvnClusterController) StartClusterNode(name string) error {
 	var node *kapi.Node
 	var subnet *net.IPNet
 	var clusterSubnets []string
-	var cidr string
+	var ipv6_prefix string
 
 	var wg sync.WaitGroup
 
@@ -77,7 +77,8 @@ func (cluster *OvnClusterController) StartClusterNode(name string) error {
 		if node, err = cluster.Kube.GetNode(name); err != nil {
 			return false, fmt.Errorf("error retrieving node %s: %v", name, err)
 		}
-		if cidr, _, err = util.RunOVNNbctl("get", "logical_switch", node.Name, "other-config:subnet"); err != nil {
+		// FIXME: use other-config:subnet on IPv4
+		if ipv6_prefix, _, err = util.RunOVNNbctl("get", "logical_switch", node.Name, "other-config:ipv6_prefix"); err != nil {
 			return false, fmt.Errorf("error retrieving logical switch: %v", err)
 		}
 		return true, nil
@@ -86,6 +87,8 @@ func (cluster *OvnClusterController) StartClusterNode(name string) error {
 		return fmt.Errorf("timed out waiting for node's: %q logical switch: %v", name, err)
 	}
 
+	// FIXME: do we have to assume /64?
+	cidr := fmt.Sprintf("%s/64", ipv6_prefix)
 	_, subnet, err = net.ParseCIDR(cidr)
 	if err != nil {
 		return fmt.Errorf("invalid hostsubnet found for node %s: %v", node.Name, err)

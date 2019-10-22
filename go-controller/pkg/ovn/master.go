@@ -252,7 +252,7 @@ func (oc *Controller) ensureNodeLogicalNetwork(nodeName string, hostsubnet *net.
 
 	// Get firstIP for gateway.  Skip the second address of the LogicalSwitch's
 	// subnet since we set it aside for the management port on that node.
-	firstIP, secondIP := util.GetNodeWellKnownAddresses(hostsubnet)
+	firstIP, _ := util.GetNodeWellKnownAddresses(hostsubnet)
 
 	nodeLRPMac, stderr, err := util.RunOVNNbctl("--if-exist", "get", "logical_router_port", "rtos-"+nodeName, "mac")
 	if err != nil {
@@ -272,9 +272,10 @@ func (oc *Controller) ensureNodeLogicalNetwork(nodeName string, hostsubnet *net.
 	}
 
 	// Create a logical switch and set its subnet.
+	// FIXME: IPv6 - make conditional, use other-config:subnet on IPv4
+	// "other-config:exclude_ips="+secondIP.IP.String(),
 	stdout, stderr, err := util.RunOVNNbctl("--", "--may-exist", "ls-add", nodeName,
-		"--", "set", "logical_switch", nodeName, "other-config:subnet="+hostsubnet.String(),
-		"other-config:exclude_ips="+secondIP.IP.String(),
+		"--", "set", "logical_switch", nodeName, "other-config:ipv6_prefix="+hostsubnet.IP.String(),
 		"external-ids:gateway_ip="+firstIP.String())
 	if err != nil {
 		logrus.Errorf("Failed to create a logical switch %v, stdout: %q, stderr: %q, error: %v", nodeName, stdout, stderr, err)
@@ -472,8 +473,9 @@ func (oc *Controller) syncNodes(nodes []interface{}) {
 	// watchNodes() will be called for all existing nodes at startup anyway.
 	// Note that this list will include the 'join' cluster switch, which we
 	// do not want to delete.
+	// FIXME: IPv6 - make conditional, use other-config:subnet on IPv4
 	nodeSwitches, stderr, err := util.RunOVNNbctl("--data=bare", "--no-heading",
-		"--columns=name,other-config", "find", "logical_switch", "other-config:subnet!=_")
+		"--columns=name,other-config", "find", "logical_switch", "other-config:ipv6_prefix!=_")
 	if err != nil {
 		logrus.Errorf("Failed to get node logical switches: stderr: %q, error: %v",
 			stderr, err)
