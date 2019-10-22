@@ -100,12 +100,12 @@ func (gp *gressPolicy) getL3MatchFromAddressSet() string {
 		addresses = fmt.Sprintf("%s, $%s", addresses, addressSet)
 	}
 	if addresses == "" {
-		l3Match = "ip4"
+		l3Match = "ip6"
 	} else {
 		if gp.policyType == knet.PolicyTypeIngress {
-			l3Match = fmt.Sprintf("ip4.src == {%s}", addresses)
+			l3Match = fmt.Sprintf("ip6.src == {%s}", addresses)
 		} else {
-			l3Match = fmt.Sprintf("ip4.dst == {%s}", addresses)
+			l3Match = fmt.Sprintf("ip6.dst == {%s}", addresses)
 		}
 	}
 	return l3Match
@@ -116,18 +116,18 @@ func (gp *gressPolicy) getMatchFromIPBlock(lportMatch, l4Match string) string {
 	ipBlockCidr := fmt.Sprintf("{%s}", strings.Join(gp.ipBlockCidr, ", "))
 	if gp.policyType == knet.PolicyTypeIngress {
 		if l4Match == noneMatch {
-			match = fmt.Sprintf("match=\"ip4.src == %s && %s\"",
+			match = fmt.Sprintf("match=\"ip6.src == %s && %s\"",
 				ipBlockCidr, lportMatch)
 		} else {
-			match = fmt.Sprintf("match=\"ip4.src == %s && %s && %s\"",
+			match = fmt.Sprintf("match=\"ip6.src == %s && %s && %s\"",
 				ipBlockCidr, l4Match, lportMatch)
 		}
 	} else {
 		if l4Match == noneMatch {
-			match = fmt.Sprintf("match=\"ip4.dst == %s && %s\"",
+			match = fmt.Sprintf("match=\"ip6.dst == %s && %s\"",
 				ipBlockCidr, lportMatch)
 		} else {
-			match = fmt.Sprintf("match=\"ip4.dst == %s && %s && %s\"",
+			match = fmt.Sprintf("match=\"ip6.dst == %s && %s && %s\"",
 				ipBlockCidr, l4Match, lportMatch)
 		}
 	}
@@ -383,31 +383,33 @@ const (
 )
 
 func (oc *Controller) addAllowACLFromNode(logicalSwitch string) error {
-	subnet, stderr, err := util.RunOVNNbctl("get", "logical_switch",
-		logicalSwitch, "other-config:subnet")
+	// FIXME: use other-config:subnet on IPv4
+	ipv6_prefix, stderr, err := util.RunOVNNbctl("get", "logical_switch",
+		logicalSwitch, "other-config:ipv6_prefix")
 	if err != nil {
 		logrus.Errorf("failed to get the logical_switch %s subnet, "+
 			"stderr: %q (%v)", logicalSwitch, stderr, err)
 		return err
 	}
 
-	if subnet == "" {
-		return fmt.Errorf("logical_switch %q had no subnet", logicalSwitch)
+	if ipv6_prefix == "" {
+		return fmt.Errorf("logical_switch %q had no ipv6_prefix", logicalSwitch)
 	}
 
+	// FIXME: should we assume /64?
+	subnet := fmt.Sprintf("%s/64", ipv6_prefix)
 	ip, _, err := net.ParseCIDR(subnet)
 	if err != nil {
 		logrus.Errorf("failed to parse subnet %s", subnet)
 		return err
 	}
 
-	// K8s only supports IPv4 right now. The second IP address of the
-	// network is the node IP address.
-	ip = ip.To4()
-	ip[3] = ip[3] + 2
+	// The second IP address of the network is the node IP address.
+	ip = util.NextIP(util.NextIP(ip))
 	address := ip.String()
 
-	match := fmt.Sprintf("ip4.src==%s", address)
+	// FIXME: handle ipv4
+	match := fmt.Sprintf("ip6.src==%s", address)
 	_, stderr, err = util.RunOVNNbctl("--may-exist", "acl-add", logicalSwitch,
 		"to-lport", defaultAllowPriority, match, "allow-related")
 	if err != nil {
