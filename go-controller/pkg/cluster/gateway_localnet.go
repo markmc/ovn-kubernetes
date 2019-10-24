@@ -20,9 +20,11 @@ import (
 )
 
 const (
-	localnetGatewayIP            = "169.254.33.2/24"
-	localnetGatewayNextHop       = "169.254.33.1"
-	localnetGatewayNextHopSubnet = "169.254.33.1/24"
+	// FIXME: the IPv6 link-local address should be based on the MAC
+	// address. Can we cause it to be automatically assigned?
+	localnetGatewayIP            = "fe80::2/64"
+	localnetGatewayNextHop       = "fe80::1"
+	localnetGatewayNextHopSubnet = "fe80::1/64"
 	iptableNodePortChain         = "OVN-KUBE-NODEPORT"
 )
 
