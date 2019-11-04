@@ -24,7 +24,7 @@ import (
 )
 
 func isOVNControllerReady(name string) (bool, error) {
-	const runDir string = "/var/run/ovn/"
+	const runDir string = "/var/run/openvswitch/"
 
 	pid, err := ioutil.ReadFile(runDir + "ovn-controller.pid")
 	if err != nil {

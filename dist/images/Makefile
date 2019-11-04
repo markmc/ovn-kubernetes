@@ -32,11 +32,6 @@ centos: bld
 	# docker push docker.io/ovnkube/ovn-daemonset:latest
 	./daemonset.sh --image=docker.io/ovnkube/ovn-daemonset:latest
 
-ipv6: bld
-	docker build -t ovn-kube-ipv6 -f Dockerfile.ipv6 .
-	docker tag ovn-kube-ipv6 quay.io/rbryant/ovn-kubernetes:latest
-	./daemonset.sh --image=quay.io/rbryant/ovn-kubernetes:latest
-
 fedora: bld
 	docker build -t ovn-kube-f -f Dockerfile.fedora .
 	# docker login -u ovnkube docker.io/ovnkube

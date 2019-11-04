@@ -358,7 +358,7 @@ var CommonFlags = []cli.Flag{
 	},
 	cli.StringFlag{
 		Name:  "config-file",
-		Usage: "configuration file path (default: /etc/ovn/ovn_k8s.conf)",
+		Usage: "configuration file path (default: /etc/openvswitch/ovn_k8s.conf)",
 	},
 	cli.IntFlag{
 		Name:        "mtu",
@@ -511,17 +511,17 @@ var OvnNBFlags = []cli.Flag{
 	},
 	cli.StringFlag{
 		Name:        "nb-client-privkey",
-		Usage:       "Private key that the client should use for talking to the OVN database.  Leave empty to use local unix socket. (default: /etc/ovn/ovnnb-privkey.pem)",
+		Usage:       "Private key that the client should use for talking to the OVN database.  Leave empty to use local unix socket. (default: /etc/openvswitch/ovnnb-privkey.pem)",
 		Destination: &cliConfig.OvnNorth.PrivKey,
 	},
 	cli.StringFlag{
 		Name:        "nb-client-cert",
-		Usage:       "Client certificate that the client should use for talking to the OVN database.  Leave empty to use local unix socket. (default: /etc/ovn/ovnnb-cert.pem)",
+		Usage:       "Client certificate that the client should use for talking to the OVN database.  Leave empty to use local unix socket. (default: /etc/openvswitch/ovnnb-cert.pem)",
 		Destination: &cliConfig.OvnNorth.Cert,
 	},
 	cli.StringFlag{
 		Name:        "nb-client-cacert",
-		Usage:       "CA certificate that the client should use for talking to the OVN database.  Leave empty to use local unix socket. (default: /etc/ovn/ovnnb-ca.cert)",
+		Usage:       "CA certificate that the client should use for talking to the OVN database.  Leave empty to use local unix socket. (default: /etc/openvswitch/ovnnb-ca.cert)",
 		Destination: &cliConfig.OvnNorth.CACert,
 	},
 }
@@ -537,17 +537,17 @@ var OvnSBFlags = []cli.Flag{
 	},
 	cli.StringFlag{
 		Name:        "sb-client-privkey",
-		Usage:       "Private key that the client should use for talking to the OVN database.  Leave empty to use local unix socket. (default: /etc/ovn/ovnsb-privkey.pem)",
+		Usage:       "Private key that the client should use for talking to the OVN database.  Leave empty to use local unix socket. (default: /etc/openvswitch/ovnsb-privkey.pem)",
 		Destination: &cliConfig.OvnSouth.PrivKey,
 	},
 	cli.StringFlag{
 		Name:        "sb-client-cert",
-		Usage:       "Client certificate that the client should use for talking to the OVN database.  Leave empty to use local unix socket. (default: /etc/ovn/ovnsb-cert.pem)",
+		Usage:       "Client certificate that the client should use for talking to the OVN database.  Leave empty to use local unix socket. (default: /etc/openvswitch/ovnsb-cert.pem)",
 		Destination: &cliConfig.OvnSouth.Cert,
 	},
 	cli.StringFlag{
 		Name:        "sb-client-cacert",
-		Usage:       "CA certificate that the client should use for talking to the OVN database.  Leave empty to use local unix socket. (default: /etc/ovn/ovnsb-ca.cert)",
+		Usage:       "CA certificate that the client should use for talking to the OVN database.  Leave empty to use local unix socket. (default: /etc/openvswitch/ovnsb-ca.cert)",
 		Destination: &cliConfig.OvnSouth.CACert,
 	},
 }
@@ -1096,9 +1096,9 @@ func buildOvnAuth(exec kexec.Interface, northbound bool, cliAuth, confAuth *OvnA
 	}
 	if strings.HasPrefix(address, "ssl") {
 		// Set up default SSL cert/key paths
-		auth.CACert = "/etc/ovn/ovn" + direction + "-ca.cert"
-		auth.PrivKey = "/etc/ovn/ovn" + direction + "-privkey.pem"
-		auth.Cert = "/etc/ovn/ovn" + direction + "-cert.pem"
+		auth.CACert = "/etc/openvswitch/ovn" + direction + "-ca.cert"
+		auth.PrivKey = "/etc/openvswitch/ovn" + direction + "-privkey.pem"
+		auth.Cert = "/etc/openvswitch/ovn" + direction + "-cert.pem"
 	}
 
 	// Build the final auth config with overrides from CLI and config file
