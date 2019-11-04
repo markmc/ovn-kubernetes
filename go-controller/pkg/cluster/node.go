@@ -203,6 +203,10 @@ func updateOVNConfig(ep *kapi.Endpoints) error {
 		masterIPList = append(masterIPList, address.IP)
 	}
 
+	if len(masterIPList) == 0 {
+		return nil
+	}
+
 	if err := config.UpdateOVNNodeAuth(masterIPList, southboundDBPort, northboundDBPort); err != nil {
 		return err
 	}
