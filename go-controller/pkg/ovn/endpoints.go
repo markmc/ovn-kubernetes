@@ -1,8 +1,6 @@
 package ovn
 
 import (
-	"fmt"
-
 	"github.com/ovn-org/ovn-kubernetes/go-controller/pkg/config"
 	util "github.com/ovn-org/ovn-kubernetes/go-controller/pkg/util"
 	"github.com/sirupsen/logrus"
@@ -278,7 +276,7 @@ func (ovn *Controller) deleteEndpoints(ep *kapi.Endpoints) error {
 				lb, err)
 			continue
 		}
-		key := fmt.Sprintf("\"%s:%d\"", svc.Spec.ClusterIP, svcPort.Port)
+		key := util.JoinHostPortInt32(svc.Spec.ClusterIP, svcPort.Port)
 		_, stderr, err := util.RunOVNNbctl("remove", "load_balancer", lb,
 			"vips", key)
 		if err != nil {

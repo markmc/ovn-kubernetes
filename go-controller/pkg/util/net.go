@@ -6,6 +6,7 @@ import (
 	"math/rand"
 	"net"
 	"runtime"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -101,4 +102,8 @@ func GetNodeWellKnownAddresses(subnet *net.IPNet) (*net.IPNet, *net.IPNet) {
 	routerIP := NextIP(subnet.IP)
 	return &net.IPNet{IP: routerIP, Mask: subnet.Mask},
 		&net.IPNet{IP: NextIP(routerIP), Mask: subnet.Mask}
+}
+
+func JoinHostPortInt32(host string, port int32) string {
+	return net.JoinHostPort(host, strconv.Itoa(int(port)))
 }
