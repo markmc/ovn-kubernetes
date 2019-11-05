@@ -20,11 +20,12 @@ import (
 )
 
 const (
-	// FIXME: the IPv6 link-local address should be based on the MAC
-	// address. Can we cause it to be automatically assigned?
-	localnetGatewayIP            = "fe80::2/64"
-	localnetGatewayNextHop       = "fe80::1"
-	localnetGatewayNextHopSubnet = "fe80::1/64"
+	// TODO We've chosen a random private IPv6 subnet to use here.
+	// It would be better to allocate a subnet out of what ovn-kubernetes
+	// was given to use already.
+	localnetGatewayIP            = "fd99::2/64"
+	localnetGatewayNextHop       = "fd99::1"
+	localnetGatewayNextHopSubnet = "fd99::1/64"
 	iptableNodePortChain         = "OVN-KUBE-NODEPORT"
 )
 
