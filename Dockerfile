@@ -35,6 +35,7 @@ RUN INSTALL_PKGS=" \
 	PyYAML bind-utils openssl firewalld-filesystem \
 	libpcap  hostname iproute strace socat \
 	containernetworking-plugins \
+	numactl-libs unbound-libs openvswitch-selinux-extra-policy \
 	" && \
 	yum install -y --setopt=tsflags=nodocs --setopt=skip_missing_names_on_install=False $INSTALL_PKGS && \
 	rpm -i \
