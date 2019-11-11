@@ -183,6 +183,16 @@ func initLocalnetGateway(nodeName string, clusterIPSubnet []string,
 		return fmt.Errorf("failed to localnet gateway: %v", err)
 	}
 
+	// TODO - IPv6 hack ... for some reason neighbor discovery isn't working here, so hard code a
+	// MAC binding for the gateway IP address for now - need to debug this further
+	util.RunIP("-6", "neigh", "del", "fd99::2", "dev", "br-nexthop")
+	stdout, stderr, err := util.RunIP("-6", "neigh", "add", "fd99::2", "dev", "br-nexthop", "lladdr", macAddress)
+	if err == nil {
+		logrus.Infof("Added MAC binding for fd99::2 on br-nexthop, stdout: '%s', stderr: '%s'", stdout, stderr)
+	} else {
+		logrus.Errorf("Error in adding MAC binding for fd99::2 on br-nexthop: %v", err)
+	}
+
 	err = localnetGatewayNAT(ipt, localnetBridgeNextHop, localnetGatewayIP)
 	if err != nil {
 		return fmt.Errorf("Failed to add NAT rules for localnet gateway (%v)",
