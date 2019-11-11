@@ -3,10 +3,11 @@ package util
 import (
 	"bytes"
 	"fmt"
-	"github.com/sirupsen/logrus"
 	"net"
 	"sort"
 	"strings"
+
+	"github.com/sirupsen/logrus"
 
 	"github.com/ovn-org/ovn-kubernetes/go-controller/pkg/config"
 )
@@ -325,7 +326,8 @@ func GatewayInit(clusterIPSubnet []string, nodeName, ifaceID, nicIP, nicMacAddre
 		"--", "--if-exists", "lrp-del", "rtoe-"+gatewayRouter,
 		"--", "lrp-add", gatewayRouter, "rtoe-"+gatewayRouter, nicMacAddress, physicalIPMask,
 		"--", "set", "logical_router_port", "rtoe-"+gatewayRouter,
-		"external-ids:gateway-physical-ip=yes")
+		"external-ids:gateway-physical-ip=yes",
+		"ipv6_ra_configs:send_periodic=true") // TODO Make this conditional on use of IPv6
 	if err != nil {
 		return fmt.Errorf("Failed to add logical port to router, stdout: %q, "+
 			"stderr: %q, error: %v", stdout, stderr, err)
