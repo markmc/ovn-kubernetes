@@ -1020,6 +1020,7 @@ func pathExists(path string) bool {
 
 // parseAddress parses an OVN database address, which can be of form
 // "ssl:1.2.3.4:6641,ssl:1.2.3.5:6641" or "ssl://1.2.3.4:6641,ssl://1.2.3.5:6641"
+// or "ssl:[fd01::1]:6641,ssl:[fd01::2]:6641
 // and returns the validated address(es) and the scheme
 func parseAddress(urlString string) (string, OvnDBScheme, error) {
 	var parsedAddress, scheme string
@@ -1027,11 +1028,10 @@ func parseAddress(urlString string) (string, OvnDBScheme, error) {
 
 	urlString = strings.Replace(urlString, "//", "", -1)
 	for _, ovnAddress := range strings.Split(urlString, ",") {
-		splits := strings.Split(ovnAddress, ":")
-		if len(splits) != 3 {
+		splits := strings.SplitN(ovnAddress, ":", 2)
+		if len(splits) != 2 {
 			return "", "", fmt.Errorf("Failed to parse OVN address %s", urlString)
 		}
-		hostPort := splits[1] + ":" + splits[2]
 
 		if scheme == "" {
 			scheme = splits[0]
@@ -1040,21 +1040,21 @@ func parseAddress(urlString string) (string, OvnDBScheme, error) {
 				urlString)
 		}
 
-		host, port, err := net.SplitHostPort(hostPort)
+		host, port, err := net.SplitHostPort(splits[1])
 		if err != nil {
 			return "", "", fmt.Errorf("failed to parse OVN DB host/port %q: %v",
-				hostPort, err)
+				splits[1], err)
 		}
 		ip := net.ParseIP(host)
 		if ip == nil {
 			return "", "", fmt.Errorf("OVN DB host %q must be an IP address, "+
-				"not a DNS name", hostPort)
+				"not a DNS name", splits[1])
 		}
 
 		if parsedAddress != "" {
 			parsedAddress += ","
 		}
-		parsedAddress += fmt.Sprintf("%s:%s:%s", scheme, host, port)
+		parsedAddress += fmt.Sprintf("%s:%s", scheme, net.JoinHostPort(host, port))
 	}
 
 	switch {
@@ -1220,19 +1220,19 @@ func (a *OvnAuthConfig) SetDBAuth() error {
 func (a *OvnAuthConfig) updateIP(newIP []string, port string) error {
 	if a.Address != "" {
 		s := strings.Split(a.Address, ":")
-		if len(s) != 3 {
+		if len(s) < 3 {
 			return fmt.Errorf("failed to parse OvnAuthConfig address %q", a.Address)
 		}
 		var newPort string
 		if port != "" {
 			newPort = port
 		} else {
-			newPort = s[2]
+			newPort = s[len(s)-1]
 		}
 
 		newAddresses := make([]string, 0, len(newIP))
 		for _, ipAddress := range newIP {
-			newAddresses = append(newAddresses, s[0]+":"+ipAddress+":"+newPort)
+			newAddresses = append(newAddresses, s[0]+":"+net.JoinHostPort(ipAddress, newPort))
 		}
 		a.Address = strings.Join(newAddresses, ",")
 	}
