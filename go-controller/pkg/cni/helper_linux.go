@@ -338,6 +338,9 @@ func (pr *PodRequest) ConfigureInterface(namespace string, podName string, ifInf
 				return fmt.Errorf("could not set up pod iptables rules: %s", string(out))
 			}
 		}
+
+		ip.SettleAddresses(contIface.Name, 10)
+
 		return nil
 	})
 	if err != nil {
